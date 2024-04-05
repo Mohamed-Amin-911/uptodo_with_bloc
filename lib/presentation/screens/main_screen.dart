@@ -1,12 +1,16 @@
-import 'package:flutter/cupertino.dart';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import 'package:uptodo_with_bloc/config/size_config.dart';
 import 'package:uptodo_with_bloc/constants/colors.dart';
 import 'package:uptodo_with_bloc/cubit/task_cubit.dart';
 import 'package:uptodo_with_bloc/data/task_class.dart';
 import 'package:uptodo_with_bloc/presentation/widgets/calender_widget.dart';
+import 'package:uptodo_with_bloc/presentation/widgets/task_card.dart';
+import 'package:uptodo_with_bloc/presentation/widgets/text_input_widget.dart';
 import 'package:uptodo_with_bloc/presentation/widgets/two_buttons_widget.dart';
 import 'package:uptodo_with_bloc/constants/text_styke.dart';
 
@@ -18,21 +22,26 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  late List<Task> allTasks;
+  Future? tasks;
   @override
   void initState() {
     super.initState();
-    allTasks = BlocProvider.of<TaskCubit>(context).getAllTasks();
+    initalizeTaskList();
   }
 
-  int selected = 0;
-  bool heart = false;
-  final controller = PageController();
+  initalizeTaskList() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
 
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
+    List<String>? contactListString = prefs.getStringList('myData');
+    if (contactListString != null) {
+      List<Task> taskss = contactListString
+          .map((contact) => Task.fromJson(json.decode(contact)))
+          .toList();
+
+      BlocProvider.of<TaskCubit>(context).tasks = taskss;
+    } else {
+      BlocProvider.of<TaskCubit>(context).tasks = [];
+    }
   }
 
   @override
@@ -63,7 +72,31 @@ class _MainScreenState extends State<MainScreen> {
               ),
               SizedBox(height: 20 * Sizeconfig.verticalBlock),
               const TwoButtonsWidget(),
-              SizedBox(height: 16 * Sizeconfig.verticalBlock),
+              SizedBox(
+                height: 470,
+                child: BlocBuilder<TaskCubit, TaskState>(
+                  builder: (context, state) {
+                    if (state is TaskInitial) {
+                      return const Center(child: Text(''));
+                    } else if (state is TasksLoaded) {
+                      return ListView.builder(
+                          physics: const ScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: state.tasks.length,
+                          itemBuilder: (context, index) {
+                            return TaskCard(
+                              txt: state.tasks[index].txt,
+                              date: state.tasks[index].date,
+                            );
+                          });
+                    } else {
+                      return const Center(
+                        child: Text('Something went wrong'),
+                      );
+                    }
+                  },
+                ),
+              )
             ],
           ),
         ),
@@ -115,13 +148,7 @@ class _MainScreenState extends State<MainScreen> {
         notchStyle: NotchStyle.circle,
         fabLocation: StylishBarFabLocation.center,
         currentIndex: 1,
-        onTap: (index) {
-          if (index == selected) return;
-          controller.jumpToPage(index);
-          setState(() {
-            selected = index;
-          });
-        },
+        onTap: (index) {},
         option: AnimatedBarOptions(
           barAnimation: BarAnimation.fade,
           inkEffect: false,
@@ -133,9 +160,13 @@ class _MainScreenState extends State<MainScreen> {
         elevation: 0,
         shape: const CircleBorder(),
         onPressed: () {
-          setState(() {
-            heart = !heart;
-          });
+          Navigator.push(
+              context,
+              ModalBottomSheetRoute(
+                  builder: (context) {
+                    return const TextInputWidget();
+                  },
+                  isScrollControlled: true));
         },
         backgroundColor: kColor.icon,
         child: const Icon(

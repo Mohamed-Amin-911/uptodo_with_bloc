@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/adapters.dart';
 import 'package:uptodo_with_bloc/cubit/task_cubit.dart';
+import 'package:uptodo_with_bloc/data/task_class.dart';
 import 'package:uptodo_with_bloc/presentation/screens/main_screen.dart';
 
-void main() {
+void main() async {
+  await Hive.initFlutter();
+  await Hive.openBox<Task>("tasks");
   runApp(const MyApp());
 }
 
